@@ -34,7 +34,7 @@ GitHub PR → GitHub Actions → API Endpoint → AI Provider → Code Review Fe
 1. Clone the repository:
 ```bash
 git clone https://github.com/crisfix22/ai-code-review-agent.git
-cd ai-code-analizer
+cd ai-code-review-agent
 ```
 
 2. Create a virtual environment:
