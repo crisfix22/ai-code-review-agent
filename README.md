@@ -1,6 +1,8 @@
 # AI Code Review Agent
 
-An AI-powered code review bot that automatically analyzes pull requests and provides comprehensive feedback. This agent supports multiple AI providers (OpenAI, Google Gemini, Anthropic Claude) and can be integrated into any repository via GitHub Actions.
+An AI-powered code review bot that automatically analyzes pull requests and provides detailed feedback on potential issues, best practices, and optimizations.
+This bot supports multiple AI providers (OpenAI, Google Gemini, Anthropic Claude) and can be easily integrated into any repository via GitHub Actions.
+Developers can extend it with new prompts, custom rules, or AI models to adapt it to different languages or team standards.
 
 ## Features
 
@@ -31,7 +33,7 @@ GitHub PR → GitHub Actions → API Endpoint → AI Provider → Code Review Fe
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/ai-code-analizer.git
+git clone https://github.com/crisfix22/ai-code-review-agent.git
 cd ai-code-analizer
 ```
 
