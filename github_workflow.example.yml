@@ -1,0 +1,75 @@
+name: AI Code Review (PR)
+
+on:
+  pull_request:
+    branches: [develop]   # Change this if your main branch is main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  analyze:
+    name: AI Code Review Bot
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate PR diff
+        id: diff
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          git diff --unified=0 "$BASE" "$HEAD" > diff.patch || true
+          # Convert diff to portable base64
+          if base64 --help 2>/dev/null | grep -q '\-w'; then
+            base64 -w 0 diff.patch > diff.b64
+          else
+            base64 diff.patch | tr -d '\n' > diff.b64
+          fi
+          echo "diff_b64=$(cat diff.b64)" >> $GITHUB_OUTPUT
+
+      - name: Call AI bot
+        id: analyze
+        env:
+          DIFF_B64: ${{ steps.diff.outputs.diff_b64 }}
+          PROVIDER: "claude"
+          LANGUAGE: "python"
+        run: |
+          BODY=$(jq -n \
+            --arg pr "${{ github.event.number }}" \
+            --arg repo "${{ github.repository }}" \
+            --arg title "${{ github.event.pull_request.title }}" \
+            --arg url "${{ github.event.pull_request.html_url }}" \
+            --arg author "${{ github.event.pull_request.user.login }}" \
+            --arg provider "$PROVIDER" \
+            --arg language "$LANGUAGE" \
+            --arg diff "$DIFF_B64" \
+            '{pr_number: ($pr|tonumber), repo: $repo, title: $title, url: $url, author: $author, provider: $provider, language: $language, diff_b64: $diff}')
+
+          curl -sS -X POST -H "Content-Type: application/json" \
+            --data "$BODY" \
+            https://your.domain.com/analize \
+            -o response.json || echo '{}' > response.json
+
+      - name: Comment feedback on PR
+        id: comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if jq -e '.feedback' response.json >/dev/null 2>&1; then
+            FEEDBACK=$(jq -r '.feedback' response.json)
+          else
+            FEEDBACK="⚠️ No feedback received from AI bot."
+          fi
+
+          echo "FEEDBACK<<EOF" >> $GITHUB_ENV
+          echo "$FEEDBACK" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          gh pr comment ${{ github.event.number }} --body "$FEEDBACK"
+

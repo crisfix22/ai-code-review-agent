@@ -1,6 +1,6 @@
 """
-Servicio de análisis de código con soporte para múltiples proveedores de IA.
-Optimizado para entornos CI/CD y GitHub Actions.
+Code analysis service with support for multiple AI providers.
+Optimized for CI/CD environments and GitHub Actions.
 """
 import os
 import json
@@ -18,17 +18,17 @@ load_dotenv()
 
 
 class CodeAnalysisService:
-    """Servicio para análisis de código usando diferentes proveedores de IA."""
+    """Service for code analysis using different AI providers."""
 
     def __init__(self):
-        # === Cargar prompts ===
+        # === Load prompts ===
         prompts_path = Path(__file__).parent.parent / "prompts" / "prompts.json"
         if not prompts_path.exists():
-            raise FileNotFoundError(f"No se encontró prompts.json en {prompts_path}")
+            raise FileNotFoundError(f"prompts.json not found at {prompts_path}")
         with open(prompts_path, "r", encoding="utf-8") as f:
             self.prompts = json.load(f)
 
-        # === Inicializar clientes ===
+        # === Initialize clients ===
         self.openai_client = None
         self.gemini_client = None
         self.claude_client = None
@@ -41,7 +41,7 @@ class CodeAnalysisService:
         if key := os.getenv("ANTHROPIC_API_KEY"):
             self.claude_client = Anthropic(api_key=key)
 
-        # === Modelos ===
+        # === Models ===
         self.models = {
             "openai": os.getenv("OPENAI_MODEL", "gpt-4o"),
             "gemini": os.getenv("GEMINI_MODEL", "gemini-1.5-pro"),
@@ -49,10 +49,10 @@ class CodeAnalysisService:
         }
 
     # -------------------------------------------------------------------------
-    # 🔍 Detección automática de lenguaje
+    # 🔍 Automatic language detection
     # -------------------------------------------------------------------------
     def _detect_language_from_diff(self, diff_text: str) -> str:
-        """Detecta el lenguaje de programación en base al diff."""
+        """Detects the programming language based on the diff."""
         extensions = set(re.findall(r'\.(\w+)(?=["\'\s]|$)', diff_text))
         python_exts = {"py", "pyi"}
         react_exts = {"jsx", "tsx"}
@@ -66,13 +66,13 @@ class CodeAnalysisService:
             if re.search(r"react(-native)?", diff_text, re.IGNORECASE):
                 return "react-native"
             return "javascript"
-        return "python"  # fallback seguro
+        return "python"  # safe fallback
 
     # -------------------------------------------------------------------------
-    # 🧩 Preparar prompt
+    # 🧩 Prepare prompt
     # -------------------------------------------------------------------------
     def _get_prompt(self, language: str, title: str, repo: str, author: str, url: str, diff_text: str) -> Tuple[str, str]:
-        """Obtiene el prompt adecuado para el lenguaje detectado."""
+        """Gets the appropriate prompt for the detected language."""
         language = language.lower()
         prompt_cfg = self.prompts.get(language) or self.prompts.get("python")
         system_prompt = prompt_cfg["system"]
@@ -82,11 +82,11 @@ class CodeAnalysisService:
         return system_prompt, user_prompt
 
     # -------------------------------------------------------------------------
-    # 🤖 Proveedores
+    # 🤖 Providers
     # -------------------------------------------------------------------------
     def _analyze_openai(self, diff_text, title, repo, author, url, language) -> str:
         if not self.openai_client:
-            raise RuntimeError("OpenAI no configurado.")
+            raise RuntimeError("OpenAI not configured.")
         system_prompt, user_prompt = self._get_prompt(language, title, repo, author, url, diff_text)
         response = self.openai_client.chat.completions.create(
             model=self.models["openai"],
@@ -99,7 +99,7 @@ class CodeAnalysisService:
 
     def _analyze_gemini(self, diff_text, title, repo, author, url, language) -> str:
         if not self.gemini_client:
-            raise RuntimeError("Gemini no configurado.")
+            raise RuntimeError("Gemini not configured.")
         system_prompt, user_prompt = self._get_prompt(language, title, repo, author, url, diff_text)
         prompt = f"{system_prompt}\n\n{user_prompt}"
         model = genai.GenerativeModel(self.models["gemini"])
@@ -108,7 +108,7 @@ class CodeAnalysisService:
 
     def _analyze_claude(self, diff_text, title, repo, author, url, language) -> str:
         if not self.claude_client:
-            raise RuntimeError("Claude no configurado.")
+            raise RuntimeError("Claude not configured.")
         system_prompt, user_prompt = self._get_prompt(language, title, repo, author, url, diff_text)
         message = self.claude_client.messages.create(
             model=self.models["claude"],
@@ -119,7 +119,7 @@ class CodeAnalysisService:
         return message.content[0].text.strip()
 
     # -------------------------------------------------------------------------
-    # 🚀 Análisis principal
+    # 🚀 Main analysis
     # -------------------------------------------------------------------------
     def analyze_code(
         self,
@@ -131,11 +131,11 @@ class CodeAnalysisService:
         provider: str = "auto",
         language: Optional[str] = None,
     ) -> str:
-        """Analiza el código usando el proveedor especificado."""
+        """Analyzes the code using the specified provider."""
         language = language or self._detect_language_from_diff(diff_text)
         provider = provider.lower()
 
-        # Selección automática de proveedor disponible
+        # Automatic selection of available provider
         if provider == "auto":
             provider = next(
                 (p for p, c in [
@@ -146,28 +146,28 @@ class CodeAnalysisService:
                 None,
             )
             if not provider:
-                logger.error("No hay proveedores de IA configurados")
-                raise RuntimeError("No hay proveedores de IA configurados.")
-            logger.info(f"🔍 Provider auto-seleccionado: {provider}")
+                logger.error("No AI providers configured")
+                raise RuntimeError("No AI providers configured.")
+            logger.info(f"🔍 Provider auto-selected: {provider}")
 
-        logger.info(f"📝 Lenguaje detectado: {language}")
-        logger.info(f"🤖 Iniciando análisis con provider: {provider} (modelo: {self.models.get(provider, 'N/A')})")
+        logger.info(f"📝 Language detected: {language}")
+        logger.info(f"🤖 Starting analysis with provider: {provider} (model: {self.models.get(provider, 'N/A')})")
 
         try:
             if provider == "openai":
-                logger.info(f"🔄 Analizando código con OpenAI usando modelo: {self.models['openai']}")
+                logger.info(f"🔄 Analyzing code with OpenAI using model: {self.models['openai']}")
                 return self._analyze_openai(diff_text, title, repo, author, url, language)
             if provider == "claude":
-                logger.info(f"🔄 Analizando código con Claude usando modelo: {self.models['claude']}")
+                logger.info(f"🔄 Analyzing code with Claude using model: {self.models['claude']}")
                 return self._analyze_claude(diff_text, title, repo, author, url, language)
             if provider == "gemini":
-                logger.info(f"🔄 Analizando código con Gemini usando modelo: {self.models['gemini']}")
+                logger.info(f"🔄 Analyzing code with Gemini using model: {self.models['gemini']}")
                 return self._analyze_gemini(diff_text, title, repo, author, url, language)
-            raise ValueError(f"Proveedor desconocido: {provider}")
+            raise ValueError(f"Unknown provider: {provider}")
         except Exception as e:
-            logger.error(f"❌ Error con provider {provider} (modelo: {self.models.get(provider, 'N/A')}): {e}", exc_info=True)
-            # Fallback a OpenAI si hay otra API disponible
+            logger.error(f"❌ Error with provider {provider} (model: {self.models.get(provider, 'N/A')}): {e}", exc_info=True)
+            # Fallback to OpenAI if another API is available
             if provider != "openai" and self.openai_client:
-                logger.warning(f"⚠️ Fallback a OpenAI (modelo: {self.models['openai']}) debido a error con {provider}")
+                logger.warning(f"⚠️ Fallback to OpenAI (model: {self.models['openai']}) due to error with {provider}")
                 return self._analyze_openai(diff_text, title, repo, author, url, language)
             raise

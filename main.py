@@ -1,18 +1,18 @@
 """
-API de Chat Bot con integración de WhatsApp Business
+AI Code Review API with optional WhatsApp Business integration
 
-Configuración requerida (variables de entorno en archivo .env):
-    WHATSAPP_ACCESS_TOKEN: Token de acceso de WhatsApp Business API
-        Obtén este valor desde tu cuenta de Meta for Developers: https://developers.facebook.com/
+Required configuration (environment variables in .env file):
+    WHATSAPP_ACCESS_TOKEN: WhatsApp Business API access token
+        Get this value from your Meta for Developers account: https://developers.facebook.com/
     
-    WHATSAPP_PHONE_NUMBER_ID: ID del número de teléfono de WhatsApp Business
-        Obtén este valor desde tu cuenta de Meta for Developers
+    WHATSAPP_PHONE_NUMBER_ID: WhatsApp Business phone number ID
+        Get this value from your Meta for Developers account
     
-    WHATSAPP_RECIPIENT_PHONE: Número de teléfono destino
-        IMPORTANTE: Debe incluir código de país sin el signo + (ejemplo: 5491123456789 para Argentina)
-        El código automáticamente remueve el + si está presente
+    WHATSAPP_RECIPIENT_PHONE: Destination phone number
+        IMPORTANT: Must include country code without the + sign (example: 5491123456789 for Argentina)
+        The code automatically removes the + if present
     
-    WHATSAPP_API_VERSION: Versión de la API de Facebook (opcional, por defecto v18.0)
+    WHATSAPP_API_VERSION: Facebook API version (optional, defaults to v18.0)
 """
 import os
 from fastapi import FastAPI
@@ -21,7 +21,7 @@ import base64
 from dotenv import load_dotenv
 import logging
 
-# Configurar logger
+# Configure logger
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -33,7 +33,7 @@ from service.googlechat_service import GoogleChatService
 from service.whatsapp_service import WhatsAppService
 from service.code_analysis_service import CodeAnalysisService
 
-# Cargar variables de entorno
+# Load environment variables
 load_dotenv()
 
 
@@ -44,35 +44,37 @@ app = FastAPI()
 async def health():
     return {"status": "ok"}
 
-# Inicializar el servicio de WhatsApp
-# Si las variables de entorno no están configuradas, la aplicación seguirá funcionando
-# pero no enviará mensajes a WhatsApp
+# Initialize WhatsApp service
+# If environment variables are not configured, the application will continue to work
+# but will not send messages to WhatsApp
 try:
     whatsapp_service = WhatsAppService()
 except ValueError as e:
-    logger.warning(f"⚠️ Advertencia: {e}. El servicio de WhatsApp no estará disponible.")
+    logger.warning(f"⚠️ Warning: {e}. WhatsApp service will not be available.")
     whatsapp_service = None
 
-# Inicializar el servicio de análisis de código
+# Initialize code analysis service
 code_analysis_service = CodeAnalysisService()
 
 
 @app.post("/analize")
 async def analyze_code(req: AnalysisRequest):
     GOOGLE_CHAT_WEBHOOK_URL = os.getenv("GOOGLE_CHAT_WEBHOOK_URL")
-    # 1️⃣ Decodificar el diff
+    SEND_WHATSAPP = os.getenv("SEND_WHATSAPP", "false").lower() == "true"
+    SEND_GOOGLE_CHAT = os.getenv("SEND_GOOGLE_CHAT", "false").lower() == "true"
+    # 1️⃣ Decode the diff
     try:
         diff_text = base64.b64decode(req.diff_b64).decode("utf-8")
-        logger.info("Diff decodificado correctamente")
+        logger.info("Diff decoded successfully")
     except Exception as e:
-        logger.error(f"Error al decodificar diff: {e}")
-        return {"feedback": f"⚠️ Error al decodificar diff: {e}"}
+        logger.error(f"Error decoding diff: {e}")
+        return {"feedback": f"⚠️ Error decoding diff: {e}"}
 
-    # 2️⃣ Determinar provider y loguear
+    # 2️⃣ Determine provider and log
     provider = req.provider or "openai"
-    logger.info(f"🔧 Provider seleccionado: {provider} (solicitado: {req.provider or 'por defecto'})")
+    logger.info(f"🔧 Provider selected: {provider} (requested: {req.provider or 'default'})")
     
-    # 3️⃣ Analizar código usando el servicio de análisis
+    # 3️⃣ Analyze code using the analysis service
     try:
         feedback =  code_analysis_service.analyze_code(
             diff_text=diff_text,
@@ -83,32 +85,34 @@ async def analyze_code(req: AnalysisRequest):
             provider=provider,
             language=req.language
         )
-        logger.info(f"✅ Análisis completado exitosamente usando provider: {provider}")
+        logger.info(f"✅ Analysis completed successfully using provider: {provider}")
     except Exception as e:
-        feedback = f"⚠️ Error al generar feedback IA: {e}"
-        logger.error(f"❌ Error al generar feedback IA con provider {provider}: {e}", exc_info=True)
+        feedback = f"⚠️ Error generating AI feedback: {e}"
+        logger.error(f"❌ Error generating AI feedback with provider {provider}: {e}", exc_info=True)
     
-    # 4️⃣ Enviar feedback a Google Chat
+    # 4️⃣ Send feedback to Google Chat
     try:
         message = {
             "text": (
-                f"*🤖 Análisis automático del PR #{req.pr_number}*\n\n"
-                f"*Repositorio:* {req.repo}\n"
-                f"*Autor:* {req.author}\n"
-                f"*Título:* {req.title}\n"
+                f"*🤖 Automatic PR Analysis #{req.pr_number}*\n\n"
+                f"*Repository:* {req.repo}\n"
+                f"*Author:* {req.author}\n"
+                f"*Title:* {req.title}\n"
                 f"*URL:* {req.url}\n\n"
-                f"*Resultado del análisis:*\n{feedback}"
+                f"*Analysis Result:*\n{feedback}"
             )
         }
-        google_chat_service = GoogleChatService(GOOGLE_CHAT_WEBHOOK_URL)
-        await google_chat_service.send_message(message=message["text"])
-        logger.info("✅ Mensaje enviado a Google Chat exitosamente")
-        await whatsapp_service.send_message(feedback)
-        logger.info("✅ Mensaje enviado a WhatsApp exitosamente")        
+        if SEND_GOOGLE_CHAT:
+            google_chat_service = GoogleChatService(GOOGLE_CHAT_WEBHOOK_URL)
+            await google_chat_service.send_message(message=message["text"])
+            logger.info("✅ Message sent to Google Chat successfully")
+        if SEND_WHATSAPP:
+            await whatsapp_service.send_message(feedback)
+            logger.info("✅ Message sent to WhatsApp successfully")        
     except Exception as e:
-        feedback += f"\n\n⚠️ Error al enviar mensaje a Google Chat: {e}"
-        logger.error(f"❌ Error al enviar mensaje a Google Chat: {e}", exc_info=True)
+        feedback += f"\n\n⚠️ Error sending message to Google Chat: {e}"
+        logger.error(f"❌ Error sending message to Google Chat: {e}", exc_info=True)
     
-    logger.info(f"📤 Feedback generado y enviado para PR #{req.pr_number} del repositorio {req.repo}")
-    # 5️⃣ Retornar feedback para que GitHub lo comente
+    logger.info(f"📤 Feedback generated and sent for PR #{req.pr_number} from repository {req.repo}")
+    # 5️⃣ Return feedback for GitHub to comment
     return {"feedback": feedback}
