@@ -4,6 +4,8 @@ An AI-powered code review bot that automatically analyzes pull requests and prov
 This bot supports multiple AI providers (OpenAI, Google Gemini, Anthropic Claude) and can be easily integrated into any repository via GitHub Actions.
 Developers can extend it with new prompts, custom rules, or AI models to adapt it to different languages or team standards.
 
+**Keywords**: AI code review, automated code review, GitHub Actions bot, code analysis, pull request review, AI code analyzer, code quality checker, GPT-4 code review, Claude code review, Gemini code review, Python code review, React code review, CI/CD code review, FastAPI code review service, AI Agent, AI Bot
+
 ## Features
 
 - 🤖 **Multi-Provider AI Support**: Choose from OpenAI (GPT-4), Google Gemini, or Anthropic Claude
@@ -394,4 +396,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with [FastAPI](https://fastapi.tiangolo.com/)
 - AI providers: OpenAI, Google Gemini, Anthropic Claude
+
+## Topics & Keywords
+
+This project is related to the following topics and can be found by searching for:
+
+- **AI & Machine Learning**: `ai-code-review`, `automated-code-review`, `ai-code-analyzer`, `machine-learning`, `artificial-intelligence`
+- **Code Quality**: `code-review`, `code-analysis`, `code-quality`, `static-analysis`, `code-reviewer`, `pull-request-review`
+- **GitHub Integration**: `github-actions`, `github-bot`, `github-integration`, `pr-review`, `pull-request-bot`
+- **CI/CD**: `cicd`, `continuous-integration`, `automated-testing`, `devops`, `code-review-automation`
+- **AI Providers**: `openai`, `gpt-4`, `claude`, `anthropic`, `gemini`, `google-ai`
+- **Languages**: `python`, `react`, `react-native`, `javascript`, `typescript`, `code-review-python`
+- **Tools & Frameworks**: `fastapi`, `docker`, `rest-api`, `webhook`, `github-webhook`
+- **Notifications**: `whatsapp-integration`, `google-chat`, `slack-alternative`, `notification-service`
+
+**Search terms**: code review bot, AI code reviewer, automated PR review, GitHub code review automation, AI-powered code analysis, code review service, pull request analyzer, code quality bot, AI code inspection, automated code feedback, AI Agent, AI Bot
 
