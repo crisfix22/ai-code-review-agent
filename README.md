@@ -139,11 +139,11 @@ OPENAI_MODEL=gpt-4o  # Optional, defaults to gpt-4o
 
 # OR Google Gemini Configuration
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-1.5-pro  # Optional, defaults to gemini-1.5-pro
+GEMINI_MODEL=gemini-2.5-flash  # Optional, defaults to gemini-2.5-flash
 
 # OR Anthropic Claude Configuration
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
-CLAUDE_MODEL=claude-3-sonnet-20240229  # Optional, defaults to claude-3-sonnet-20240229
+CLAUDE_MODEL=claude-sonnet-4-5  # Optional, defaults to claude-sonnet-4-5
 ```
 
 ### Optional

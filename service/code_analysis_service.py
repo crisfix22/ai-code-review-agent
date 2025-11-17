@@ -44,8 +44,8 @@ class CodeAnalysisService:
         # === Models ===
         self.models = {
             "openai": os.getenv("OPENAI_MODEL", "gpt-4o"),
-            "gemini": os.getenv("GEMINI_MODEL", "gemini-1.5-pro"),
-            "claude": os.getenv("CLAUDE_MODEL", "claude-3-sonnet-20240229"),
+            "gemini": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            "claude": os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5"),
         }
 
     # -------------------------------------------------------------------------
