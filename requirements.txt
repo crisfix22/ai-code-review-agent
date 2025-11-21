@@ -5,3 +5,10 @@ python-dotenv
 openai
 google-generativeai
 anthropic
+langchain-core
+langchain-openai
+langchain-anthropic
+langchain-google-genai
+chromadb
+langchain-chroma
+pyyaml>=6.0.1

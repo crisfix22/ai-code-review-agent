@@ -11,6 +11,7 @@ Developers can extend it with new prompts, custom rules, or AI models to adapt i
 - 🤖 **Multi-Provider AI Support**: Choose from OpenAI (GPT-4), Google Gemini, or Anthropic Claude
 - 🔍 **Automatic Language Detection**: Automatically detects programming language from code diffs
 - 📝 **Comprehensive Code Review**: Analyzes code for bugs, security issues, performance, best practices, and maintainability
+- 🧠 **RAG (Retrieval Augmented Generation)**: Uses Langchain and ChromaDB to enhance analysis with context from previous reviews and documentation
 - 🔗 **GitHub Integration**: Easy integration with GitHub Actions workflows
 - 🐳 **Docker Support**: Ready for deployment to Google Cloud Run or any container platform
 - 📱 **Multi-Channel Notifications**: Optional integrations with Google Chat and WhatsApp
@@ -163,6 +164,12 @@ WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token
 WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 WHATSAPP_RECIPIENT_PHONE=1234567890  # Country code + number without +
 WHATSAPP_API_VERSION=v18.0  # Optional, defaults to v18.0
+
+# RAG Configuration (Optional)
+USE_RAG=true  # Enable/disable RAG (default: true)
+VECTOR_DB_TYPE=chroma  # Vector database type (default: chroma)
+CHROMA_DB_PATH=./chroma_db  # Path for ChromaDB storage (default: ./chroma_db)
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small  # Optional, for OpenAI embeddings
 ```
 
 See `.env.example` for a complete template.
@@ -289,7 +296,8 @@ Analyzes a code diff and returns AI-generated feedback.
   "author": "username",
   "diff_b64": "base64_encoded_diff_here",
   "provider": "openai",  // Optional: "openai", "gemini", "claude", or omit for auto-selection
-  "language": "python"   // Optional: auto-detected if not provided
+  "language": "python",  // Optional: auto-detected if not provided
+  "use_rag": true        // Optional: enable/disable RAG for this request (default: true)
 }
 ```
 
@@ -374,9 +382,21 @@ Other languages will use the Python prompt template as a fallback.
 1. **Diff Encoding**: GitHub Actions calculates the diff and encodes it as base64
 2. **API Request**: The encoded diff is sent to the `/analize` endpoint
 3. **Language Detection**: The service detects the programming language from file extensions
-4. **AI Analysis**: The appropriate AI provider analyzes the code using language-specific prompts
-5. **Feedback Generation**: The AI generates comprehensive code review feedback
-6. **Response**: Feedback is returned and posted as a PR comment
+4. **RAG Context Retrieval** (if enabled): Similar previous reviews and documentation are retrieved from ChromaDB
+5. **Prompt Enrichment**: The prompt is enriched with relevant context from RAG
+6. **AI Analysis**: The appropriate AI provider analyzes the code using language-specific prompts with context
+7. **Feedback Generation**: The AI generates comprehensive code review feedback
+8. **Storage**: The review is stored in ChromaDB for future reference
+9. **Response**: Feedback is returned and posted as a PR comment
+
+## RAG (Retrieval Augmented Generation)
+
+This project includes RAG capabilities using Langchain and ChromaDB to enhance code analysis with context from:
+- Previous code reviews
+- Code snippets and best practices
+- Technical documentation
+
+RAG is enabled by default but can be disabled per-request or globally. See [RAG.md](RAG.md) for detailed documentation.
 
 ## Contributing
 
