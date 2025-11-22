@@ -20,15 +20,8 @@ from models.analize import AnalysisRequest
 from typing import Optional
 import base64
 from dotenv import load_dotenv
-import logging
 
-# Configure logger
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger("code-analyzer")
+from utils.logger import logger
 
 from service.googlechat_service import GoogleChatService
 from service.whatsapp_service import WhatsAppService

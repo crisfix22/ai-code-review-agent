@@ -12,7 +12,7 @@ import google.generativeai as genai
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-from main import logger
+from utils.logger import logger
 from service.rag_service import create_rag_service, RAGService
 from service.ai_provider_builders import build_provider_analyzers
 

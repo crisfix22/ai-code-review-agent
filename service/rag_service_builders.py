@@ -6,7 +6,7 @@ Centralizes the dispatch pattern for RAG service implementations using dictionar
 from typing import Callable, Optional, Dict
 
 from service.rag_service import RAGService, ChromaRAGService
-from main import logger
+from utils.logger import logger
 
 
 RAGBuilder = Callable[[], Optional[RAGService]]

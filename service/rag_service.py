@@ -14,7 +14,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
-from main import logger
+from utils.logger import logger
 
 load_dotenv()
 
