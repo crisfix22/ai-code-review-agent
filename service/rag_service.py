@@ -39,17 +39,11 @@ class RAGService(ABC):
     def search_similar(
         self,
         query: str,
-        provider: str,
         top_k: int = 5,
         language: Optional[str] = None,
         doc_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Search for similar documents."""
-        pass
-    
-    @abstractmethod
-    def get_embedding_function(self, provider: str):
-        """Get the embedding function for the specified provider."""
         pass
 
 
@@ -61,77 +55,72 @@ class ChromaRAGService(RAGService):
         self.db_path = db_path or os.getenv("CHROMA_DB_PATH", "./chroma_db")
         self.collection_name = "code_analysis"
         
-        # Initialize embedding functions for each provider
-        self._embedding_functions = {}
-        self._vector_stores = {}
+        # Single embedding function and vector store shared by all providers
+        self._embedding_function = None
+        self._vector_store = None
         
-        # Initialize embeddings if API keys are available
+        # Initialize embedding function (priority: Gemini → OpenAI → Anthropic)
         self._initialize_embeddings()
         
-        # Initialize vector stores
-        self._initialize_vector_stores()
+        # Initialize single vector store
+        self._initialize_vector_store()
         
         logger.info(f"✅ ChromaRAGService initialized with path: {self.db_path}")
     
     def _initialize_embeddings(self):
-        """Initialize embedding functions for each provider."""
-        openai_embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-        openai_embedding = OpenAIEmbeddings(
-            model=openai_embedding_model,
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
-        )
-        # OpenAI embeddings
-        if api_key := os.getenv("OPENAI_API_KEY"):
-            try:
-                self._embedding_functions["openai"] = openai_embedding
-                logger.info("✅ OpenAI embeddings initialized")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to initialize OpenAI embeddings: {e}")
-        
-        # Anthropic embeddings
-        if api_key := os.getenv("ANTHROPIC_API_KEY"):
-            try:
-                self._embedding_functions["claude"] = openai_embedding
-                logger.info(f"✅ OpenAI embeddings initialized for Claude model : {openai_embedding_model}")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to initialize OpenAI embeddings for Claude model: {openai_embedding_model}: {e}")
-        
-        # Google Gemini embeddings
+        """Initialize a single embedding function with priority: Gemini → OpenAI → Anthropic."""
+        # Priority 1: Google Gemini embeddings
         if api_key := os.getenv("GEMINI_API_KEY"):
             try:
-                self._embedding_functions["gemini"] = GoogleGenerativeAIEmbeddings(
+                self._embedding_function = GoogleGenerativeAIEmbeddings(
                     model="models/embedding-001",
                     google_api_key=api_key,
                 )
                 logger.info("✅ Google Gemini embeddings initialized")
+                return
             except Exception as e:
                 logger.warning(f"⚠️ Failed to initialize Google Gemini embeddings: {e}")
-    
-    def _initialize_vector_stores(self):
-        """Initialize vector stores for each provider."""
-        for provider, embedding_func in self._embedding_functions.items():
+        
+        # Priority 2: OpenAI embeddings
+        if api_key := os.getenv("OPENAI_API_KEY"):
             try:
-                # Create collection name per provider
-                collection_name = f"{self.collection_name}_{provider}"
-                
-                self._vector_stores[provider] = Chroma(
-                    collection_name=collection_name,
-                    embedding_function=embedding_func,
-                    persist_directory=self.db_path,
+                openai_embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+                self._embedding_function = OpenAIEmbeddings(
+                    model=openai_embedding_model,
+                    openai_api_key=api_key,
                 )
-                logger.info(f"✅ Vector store initialized for provider: {provider}")
+                logger.info(f"✅ OpenAI embeddings initialized (model: {openai_embedding_model})")
+                return
             except Exception as e:
-                logger.warning(f"⚠️ Failed to initialize vector store for {provider}: {e}")
+                logger.warning(f"⚠️ Failed to initialize OpenAI embeddings: {e}")
+        
+        # Priority 3: Anthropic embeddings (if available in langchain-anthropic)
+        # Note: Anthropic doesn't have a dedicated embeddings API, so we fall back to OpenAI
+        # If OpenAI is not available, we log a warning
+        if not self._embedding_function:
+            logger.warning("⚠️ No embedding function available. Please configure GEMINI_API_KEY or OPENAI_API_KEY")
     
-    def get_embedding_function(self, provider: str):
-        """Get the embedding function for the specified provider."""
-        provider = provider.lower()
-        if provider not in self._embedding_functions:
-            raise ValueError(
-                f"Embedding function not available for provider: {provider}. "
-                f"Available providers: {list(self._embedding_functions.keys())}"
+    def _initialize_vector_store(self):
+        """Initialize a single vector store shared by all providers."""
+        if not self._embedding_function:
+            logger.warning("⚠️ No embedding function available. Cannot initialize vector store.")
+            return
+        
+        try:
+            self._vector_store = Chroma(
+                collection_name=self.collection_name,
+                embedding_function=self._embedding_function,
+                persist_directory=self.db_path,
             )
-        return self._embedding_functions[provider]
+            logger.info(f"✅ Vector store initialized (shared by all providers)")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to initialize vector store: {e}")
+    
+    def get_embedding_function(self):
+        """Get the embedding function (shared by all providers)."""
+        if not self._embedding_function:
+            raise ValueError("No embedding function available. Please configure GEMINI_API_KEY or OPENAI_API_KEY")
+        return self._embedding_function
     
     def store_document(
         self,
@@ -142,9 +131,9 @@ class ChromaRAGService(RAGService):
         author: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """Store a document in ChromaDB."""
-        if not self._vector_stores:
-            logger.warning("⚠️ No vector stores available. Cannot store document.")
+        """Store a document in ChromaDB (shared vector store)."""
+        if not self._vector_store:
+            logger.warning("⚠️ No vector store available. Cannot store document.")
             return None
         
         doc_id = str(uuid.uuid4())
@@ -166,47 +155,32 @@ class ChromaRAGService(RAGService):
         if metadata:
             doc_metadata.update(metadata)
         
-        # Store in all available vector stores (using first available provider as default)
-        stored_ids = []
-        for provider, vector_store in self._vector_stores.items():
-            try:
-                document = Document(
-                    page_content=content,
-                    metadata=doc_metadata,
-                )
-                vector_store.add_documents([document], ids=[doc_id])
-                stored_ids.append(provider)
-            except Exception as e:
-                logger.error(f"❌ Error storing document in {provider} vector store: {e}")
-        
-        if stored_ids:
-            logger.info(f"✅ Document stored with ID: {doc_id} in providers: {stored_ids}")
+        # Store in the single shared vector store
+        try:
+            document = Document(
+                page_content=content,
+                metadata=doc_metadata,
+            )
+            self._vector_store.add_documents([document], ids=[doc_id])
+            logger.info(f"✅ Document stored with ID: {doc_id}")
             return doc_id
-        else:
-            logger.error("❌ Failed to store document in any vector store")
+        except Exception as e:
+            logger.error(f"❌ Error storing document: {e}")
             return None
     
     def search_similar(
         self,
         query: str,
-        provider: str,
         top_k: int = 5,
         language: Optional[str] = None,
         doc_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Search for similar documents in ChromaDB."""
-        provider = provider.lower()
-        
-        if provider not in self._vector_stores:
-            logger.warning(
-                f"⚠️ Vector store not available for provider: {provider}. "
-                f"Available providers: {list(self._vector_stores.keys())}"
-            )
+        """Search for similar documents in ChromaDB (shared vector store)."""
+        if not self._vector_store:
+            logger.warning("⚠️ No vector store available. Cannot search documents.")
             return []
         
         try:
-            vector_store = self._vector_stores[provider]
-            
             # Build filter if needed
             where_filter = {}
             if language:
@@ -216,13 +190,13 @@ class ChromaRAGService(RAGService):
             
             # Perform similarity search
             if where_filter:
-                results = vector_store.similarity_search_with_score(
+                results = self._vector_store.similarity_search_with_score(
                     query,
                     k=top_k,
                     filter=where_filter,
                 )
             else:
-                results = vector_store.similarity_search_with_score(query, k=top_k)
+                results = self._vector_store.similarity_search_with_score(query, k=top_k)
             
             # Format results
             formatted_results = []
@@ -233,7 +207,7 @@ class ChromaRAGService(RAGService):
                     "score": float(score),
                 })
             
-            logger.info(f"✅ Found {len(formatted_results)} similar documents for provider: {provider}")
+            logger.info(f"✅ Found {len(formatted_results)} similar documents")
             return formatted_results
             
         except Exception as e:

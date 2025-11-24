@@ -106,7 +106,6 @@ class CodeAnalysisService:
                 # Search for similar documents
                 similar_docs = self.rag_service.search_similar(
                     query=diff_text[:1000],  # Use first 1000 chars as query
-                    provider=provider,
                     top_k=5,
                     language=language,
                 )
