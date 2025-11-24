@@ -8,7 +8,7 @@ Developers can extend it with new prompts, custom rules, or AI models to adapt i
 
 ## Demo
 
-![AI Code Review Agent Demo](ai-code-review-agent.gif)
+![AI Code Review Agent Demo](ai-code-review.gif)
 
 ## Features
 
