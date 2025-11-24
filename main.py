@@ -119,7 +119,7 @@ async def analyze_code(req: AnalysisRequest):
 @app.post("/store")
 async def store_document(
     content: str,
-    doc_type: str,
+    doc_type: Optional[str] = None,
     language: Optional[str] = None,
     repo: Optional[str] = None,
     author: Optional[str] = None,
@@ -129,7 +129,7 @@ async def store_document(
     
     Args:
         content: The document content to store
-        doc_type: Type of document ("review", "code_snippet", "documentation")
+        doc_type: Type of document ("review", "code_snippet", "documentation") (optional)
         language: Programming language (optional)
         repo: Repository name (optional)
         author: Author name (optional)

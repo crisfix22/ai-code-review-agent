@@ -182,12 +182,211 @@ POST /analize
 POST /store
 {
     "content": "Documentation about Python best practices...",
-    "doc_type": "documentation",  # review | code_snippet | documentation
-    "language": "python",
+    "doc_type": "documentation",  # optional: review | code_snippet | documentation
+    "language": "python",  # optional
     "repo": "my-repo",  # optional
     "author": "developer"  # optional
 }
 ```
+
+### Complete Example: Storing Code Analysis Results
+
+This example demonstrates how to store a code analysis result in the vector database using the `/store` endpoint. This is useful for preserving important code review insights, best practices, and patterns that can be retrieved later to improve future code reviews.
+
+#### Scenario
+
+After analyzing a Python file that uses an anti-pattern (long if/elif chain), we want to store the analysis result and recommendations in the vector database so that similar patterns can be detected and improved in future code reviews.
+
+#### 1. Code Being Analyzed
+
+The following code was analyzed and found to have an anti-pattern issue:
+
+```python
+from enum import Enum
+
+class BotType(str, Enum):
+    TWITTER = "twitter"
+    BLUESKY = "bluesky"
+    X = "x"
+    LINKEDIN = "linkedin"
+    LINKEDIN_BUSINESS = "linkedin_business"
+    TIKTOK = "tiktok"
+    INSTAGRAM = "instagram"
+    FACEBOOK = "facebook"
+    YOUTUBE = "youtube"
+    PINTEREST = "pinterest"
+    REDDIT = "reddit"
+
+class BotAnalizer:
+    def __init__(self):
+        self.bot_type = BotType.TWITTER
+    
+    async def analize_bot(self, bot_type: BotType):
+        self.bot_type = bot_type
+        if self.bot_type == BotType.TWITTER:
+            return self.analize_twitter()
+        elif self.bot_type == BotType.BLUESKY:
+            return self.analize_bluesky()
+        elif self.bot_type == BotType.X:
+            return self.analize_x()
+        elif self.bot_type == BotType.LINKEDIN:
+            return self.analize_linkedin()
+        elif self.bot_type == BotType.LINKEDIN_BUSINESS:
+            return self.analize_linkedin_business()
+        elif self.bot_type == BotType.TIKTOK:
+            return self.analize_tiktok()
+        elif self.bot_type == BotType.INSTAGRAM:
+            return self.analize_instagram()
+        elif self.bot_type == BotType.FACEBOOK:
+            return self.analize_facebook()
+        elif self.bot_type == BotType.YOUTUBE:
+            return self.analize_youtube()
+        elif self.bot_type == BotType.PINTEREST:
+            return self.analize_pinterest()
+        elif self.bot_type == BotType.REDDIT:
+            return self.analize_reddit()
+        else:
+            raise ValueError(f"Bot type {self.bot_type} not supported")
+    
+    async def analize_twitter(self):
+        return "Twitter"
+    
+    # ... other methods ...
+```
+
+#### 2. Analysis Result Summary
+
+The AI code review identified a critical anti-pattern: **If/Elif Chain Instead of Dictionary Dispatch**. The analysis found:
+
+**Problem:**
+- Long if/elif chain (11+ conditions) violates factory pattern best practices
+- O(n) time complexity for lookups
+- Difficult to extend with new bot types
+- High cyclomatic complexity (18, recommended max: 10)
+
+**Recommended Solution:**
+Replace the if/elif chain with a registry-based factory pattern using a dictionary lookup:
+
+```python
+class BotAnalyzer:
+    def __init__(self):
+        self._analyzers = {
+            BotType.TWITTER: self.analyze_twitter,
+            BotType.BLUESKY: self.analyze_bluesky,
+            BotType.X: self.analyze_x,
+            BotType.LINKEDIN: self.analyze_linkedin,
+            # ... etc
+        }
+    
+    async def analyze_bot(self, bot_type: BotType) -> str:
+        analyzer = self._analyzers.get(bot_type)
+        if analyzer is None:
+            raise ValueError(f"Bot type {bot_type} not supported")
+        return await analyzer()
+```
+
+**Benefits:**
+- O(1) lookup instead of O(n) comparison
+- Easier to extend with new bot types
+- More maintainable and testable
+- Reduces cyclomatic complexity to ~2
+
+#### 3. Storing the Analysis in Vector Database
+
+To store this analysis result and recommendation in the vector database for future reference, use the `/store` endpoint:
+
+**Request Body:**
+
+```json
+{
+    "content": "### Improving Python Factory Patterns to Avoid Infinite If/Else\n\nWhen reviewing Python code that implements a factory function using multiple `if/elif` checks such as:\n\n```python\nif vector_db_type == \"chroma\":\n    return ChromaRAGService()\nelif vector_db_type == \"pinecone\":\n    return PineconeRAGService()\nelse:\n    return None\n```\n\nRecommend replacing the `if/elif` chain with a more scalable and maintainable pattern, such as a registry-based factory or a dictionary lookup, similar to how JavaScript uses an object map instead of switch/if-else.\n\nThis avoids code duplication, improves extensibility, and makes it easy to add new providers without touching the core factory logic.\n\n### Example Python improvement\n\nUse a provider map:\n\n```python\nPROVIDERS = {\n    \"chroma\": ChromaRAGService,\n    \"pinecone\": PineconeRAGService,\n}\n\ndef create_rag_service() -> Optional[RAGService]:\n    vector_db_type = os.getenv(\"VECTOR_DB_TYPE\", \"chroma\").lower()\n    use_rag = os.getenv(\"USE_RAG\", \"true\").lower() == \"true\"\n\n    if not use_rag:\n        logger.info(\"RAG disabled\")\n        return None\n\n    provider = PROVIDERS.get(vector_db_type)\n\n    if provider is None:\n        logger.warning(f\"Unknown vector DB type: {vector_db_type}\")\n        return None\n\n    try:\n        return provider()\n    except Exception as e:\n        logger.warning(f\"Failed to initialize provider {vector_db_type}: {e}\")\n        return None\n```\n\n### Equivalent JavaScript pattern (for cross-language consistency)\n\n```ts\nexport enum RAG_TYPE {\n  CHROMA = \"chroma_db\",\n  PINECONE = \"pinecone\"\n}\n\nexport const RAGS_IMPL = {\n  [RAG_TYPE.CHROMA]: {\n    ragProvider: () => chromaRAGService(),\n  },\n  [RAG_TYPE.PINECONE]: {\n    ragProvider: () => console.log(\"Not implemented\"),\n  },\n};\n```\n\n### Review Recommendation\nWhenever the model detects a Python factory using multiple `if/elif` statements, suggest switching to a registry/dictionary-based provider map, referencing the JS implementation pattern as a clean and extensible example.",
+    "doc_type": "documentation",  // optional: review | code_snippet | documentation
+    "language": "python",  // optional
+    "repo": "my-repo",  // optional
+    "author": "developer"  // optional
+}
+```
+
+**Using curl:**
+
+*Note: All fields except `content` are optional (`doc_type`, `language`, `repo`, `author`).*
+
+```bash
+curl -X POST "http://localhost:8080/store" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "### Improving Python Factory Patterns to Avoid Infinite If/Else\n\nWhen reviewing Python code that implements a factory function using multiple `if/elif` checks such as:\n\n```python\nif vector_db_type == \"chroma\":\n    return ChromaRAGService()\nelif vector_db_type == \"pinecone\":\n    return PineconeRAGService()\nelse:\n    return None\n```\n\nRecommend replacing the `if/elif` chain with a more scalable and maintainable pattern, such as a registry-based factory or a dictionary lookup, similar to how JavaScript uses an object map instead of switch/if-else.\n\nThis avoids code duplication, improves extensibility, and makes it easy to add new providers without touching the core factory logic.\n\n### Example Python improvement\n\nUse a provider map:\n\n```python\nPROVIDERS = {\n    \"chroma\": ChromaRAGService,\n    \"pinecone\": PineconeRAGService,\n}\n\ndef create_rag_service() -> Optional[RAGService]:\n    vector_db_type = os.getenv(\"VECTOR_DB_TYPE\", \"chroma\").lower()\n    use_rag = os.getenv(\"USE_RAG\", \"true\").lower() == \"true\"\n\n    if not use_rag:\n        logger.info(\"RAG disabled\")\n        return None\n\n    provider = PROVIDERS.get(vector_db_type)\n\n    if provider is None:\n        logger.warning(f\"Unknown vector DB type: {vector_db_type}\")\n        return None\n\n    try:\n        return provider()\n    except Exception as e:\n        logger.warning(f\"Failed to initialize provider {vector_db_type}: {e}\")\n        return None\n```\n\n### Equivalent JavaScript pattern (for cross-language consistency)\n\n```ts\nexport enum RAG_TYPE {\n  CHROMA = \"chroma_db\",\n  PINECONE = \"pinecone\"\n}\n\nexport const RAGS_IMPL = {\n  [RAG_TYPE.CHROMA]: {\n    ragProvider: () => chromaRAGService(),\n  },\n  [RAG_TYPE.PINECONE]: {\n    ragProvider: () => console.log(\"Not implemented\"),\n  },\n};\n```\n\n### Review Recommendation\nWhenever the model detects a Python factory using multiple `if/elif` statements, suggest switching to a registry/dictionary-based provider map, referencing the JS implementation pattern as a clean and extensible example.",
+    "doc_type": "documentation",
+    "language": "python",
+    "repo": "my-repo",
+    "author": "developer"
+  }'
+```
+
+**Response:**
+
+```json
+{
+    "success": true,
+    "document_id": "unique-uuid-here",
+    "message": "Document stored successfully"
+}
+```
+
+#### 4. How This Helps Future Reviews
+
+Once stored, this documentation will be automatically retrieved by RAG when analyzing similar code patterns. For example:
+
+- When a new PR contains code with long if/elif chains, the RAG system will retrieve this stored documentation
+- The AI model will use this context to provide consistent recommendations about using registry patterns
+- This ensures that best practices are consistently applied across all code reviews
+
+The stored document will be searched based on semantic similarity, so even if the code structure is slightly different, the relevant pattern and recommendation will be retrieved.
+
+#### 5. How the Stored Content Instructs the AI
+
+The key to making RAG work effectively is the **specific content** that gets stored in the vector database. The content field contains explicit instructions and examples that guide the AI's analysis:
+
+**Critical Content Elements:**
+
+1. **Pattern Detection Instructions**: The stored content explicitly mentions:
+   - "When reviewing Python code that implements a factory function using multiple `if/elif` checks"
+   - This tells the AI to look for this specific pattern
+
+2. **Example Code Patterns**: The content includes examples of the anti-pattern:
+   ```python
+   if vector_db_type == "chroma":
+       return ChromaRAGService()
+   elif vector_db_type == "pinecone":
+       return PineconeRAGService()
+   ```
+   When the AI analyzes new code, it can match similar patterns semantically
+
+3. **Explicit Recommendations**: The content contains direct instructions:
+   - "Recommend replacing the `if/elif` chain with a more scalable and maintainable pattern"
+   - "Whenever the model detects a Python factory using multiple `if/elif` statements, suggest switching to a registry/dictionary-based provider map"
+
+4. **Solution Examples**: The stored content provides concrete solutions that the AI can reference and adapt
+
+**How It Works:**
+
+1. When analyzing new code, the RAG system generates an embedding of the code diff
+2. It searches the vector database for semantically similar documents
+3. The stored content about "if/elif chains" will be retrieved because:
+   - The embedding of the new code (with if/elif chains) is semantically similar to the stored content
+   - The stored content explicitly mentions "if/elif" patterns, making it highly relevant
+4. The retrieved content is added to the AI's prompt as context
+5. The AI reads the instructions in the retrieved content and applies them to the current code review
+
+**Why This Approach Works:**
+
+The stored content acts as **custom instructions** for the AI. Instead of relying solely on the AI's general knowledge, you're providing:
+- **Domain-specific patterns** to detect
+- **Team-specific best practices** to enforce
+- **Concrete examples** of problems and solutions
+- **Explicit recommendations** to follow
+
+This is why the content field is so important - it's not just documentation, it's **active instructions** that guide the AI's code review process. The more specific and detailed the content, the better the AI can detect patterns and provide relevant recommendations.
 
 ### Disable RAG per Request
 
@@ -220,6 +419,8 @@ Each stored document contains:
 ```
 
 ## Document Types
+
+**Note:** The `doc_type` field is optional when storing documents. If not provided, the document will still be stored and can be retrieved, but it won't be categorized by type.
 
 ### 1. Review (`type: "review"`)
 - Code reviews generated automatically
