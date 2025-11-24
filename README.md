@@ -6,6 +6,10 @@ Developers can extend it with new prompts, custom rules, or AI models to adapt i
 
 **Keywords**: AI code review, automated code review, GitHub Actions bot, code analysis, pull request review, AI code analyzer, code quality checker, GPT-4 code review, Claude code review, Gemini code review, Python code review, React code review, CI/CD code review, FastAPI code review service, AI Agent, AI Bot
 
+## Demo
+
+![AI Code Review Agent Demo](ai-recortado.gif)
+
 ## Features
 
 - 🤖 **Multi-Provider AI Support**: Choose from OpenAI (GPT-4), Google Gemini, or Anthropic Claude
