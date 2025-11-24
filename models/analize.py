@@ -10,3 +10,4 @@ class AnalysisRequest(BaseModel):
     diff_b64: str
     provider: Optional[Literal["openai", "gemini", "claude"]] = None
     language: Optional[str] = None
+    use_rag: Optional[bool] = True

@@ -1,4 +1,5 @@
 #!/bin/zsh
+source .venv/bin/activate
 
 set -euo pipefail
 

@@ -17,17 +17,11 @@ Required configuration (environment variables in .env file):
 import os
 from fastapi import FastAPI
 from models.analize import AnalysisRequest
+from typing import Optional
 import base64
 from dotenv import load_dotenv
-import logging
 
-# Configure logger
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger("code-analyzer")
+from utils.logger import logger
 
 from service.googlechat_service import GoogleChatService
 from service.whatsapp_service import WhatsAppService
@@ -76,6 +70,9 @@ async def analyze_code(req: AnalysisRequest):
     
     # 3️⃣ Analyze code using the analysis service
     try:
+        # Determine if RAG should be used (request level or global setting)
+        use_rag = req.use_rag if req.use_rag is not None else (os.getenv("USE_RAG", "true").lower() == "true")
+        
         feedback =  code_analysis_service.analyze_code(
             diff_text=diff_text,
             title=req.title,
@@ -83,7 +80,8 @@ async def analyze_code(req: AnalysisRequest):
             author=req.author,
             url=req.url,
             provider=provider,
-            language=req.language
+            language=req.language,
+            use_rag=use_rag
         )
         logger.info(f"✅ Analysis completed successfully using provider: {provider}")
     except Exception as e:
@@ -116,3 +114,62 @@ async def analyze_code(req: AnalysisRequest):
     logger.info(f"📤 Feedback generated and sent for PR #{req.pr_number} from repository {req.repo}")
     # 5️⃣ Return feedback for GitHub to comment
     return {"feedback": feedback}
+
+
+@app.post("/store")
+async def store_document(
+    content: str,
+    doc_type: Optional[str] = None,
+    language: Optional[str] = None,
+    repo: Optional[str] = None,
+    author: Optional[str] = None,
+):
+    """
+    Store a document in the RAG vector database.
+    
+    Args:
+        content: The document content to store
+        doc_type: Type of document ("review", "code_snippet", "documentation") (optional)
+        language: Programming language (optional)
+        repo: Repository name (optional)
+        author: Author name (optional)
+    
+    Returns:
+        dict: Result with document ID if successful
+    """
+    from service.rag_service import create_rag_service
+    
+    rag_service = create_rag_service()
+    if not rag_service:
+        return {
+            "success": False,
+            "error": "RAG service not available. Check configuration."
+        }
+    
+    try:
+        doc_id = rag_service.store_document(
+            content=content,
+            doc_type=doc_type,
+            language=language,
+            repo=repo,
+            author=author,
+        )
+        
+        if doc_id:
+            logger.info(f"✅ Document stored successfully with ID: {doc_id}")
+            return {
+                "success": True,
+                "document_id": doc_id,
+                "message": "Document stored successfully"
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Failed to store document"
+            }
+    except Exception as e:
+        logger.error(f"❌ Error storing document: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }

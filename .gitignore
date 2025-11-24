@@ -3,3 +3,9 @@ __pycache__/
 *.log
 *.pyc
 *.env
+
+# ChromaDB data files
+chroma_db/*.sqlite3
+chroma_db/*/
+chroma_db/*.bin
+chroma_db/chroma.sqlite3

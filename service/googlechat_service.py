@@ -1,6 +1,6 @@
 import httpx
 
-from main import logger
+from utils.logger import logger
 class GoogleChatService:
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url

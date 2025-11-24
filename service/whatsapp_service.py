@@ -18,6 +18,8 @@ import os
 import httpx
 from typing import Optional
 
+from utils.logger import logger
+
 
 
 
@@ -107,18 +109,18 @@ class WhatsAppService:
                 headers=headers
             )            
             result = response.json()
-            print(f"✅ Message sent to WhatsApp: {result} and payload: {payload}")
+            logger.info(f"✅ Message sent to WhatsApp: {result} and payload: {payload}")
             return result
             
         except httpx.HTTPStatusError as e:
             error_msg = f"Error sending message to WhatsApp: {e}"
             if e.response is not None:
                 error_msg += f" - Response: {e.response.text}"
-            print(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)
         except httpx.RequestError as e:
             error_msg = f"Connection error sending message to WhatsApp: {e}"
-            print(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)
     
     async def send_template_message(self, template_name: str, language_code: str = "es", 
@@ -178,17 +180,17 @@ class WhatsAppService:
             response.raise_for_status()
             
             result = response.json()
-            print(f"✅ Template message sent to WhatsApp: {result}")
+            logger.info(f"✅ Template message sent to WhatsApp: {result}")
             return result
             
         except httpx.HTTPStatusError as e:
             error_msg = f"Error sending template message to WhatsApp: {e}"
             if e.response is not None:
                 error_msg += f" - Response: {e.response.text}"
-            print(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)
         except httpx.RequestError as e:
             error_msg = f"Connection error sending template message to WhatsApp: {e}"
-            print(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)
 
