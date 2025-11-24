@@ -152,10 +152,19 @@ GEMINI_API_KEY=...
 
 ### Embedding Models
 
-- **OpenAI**: `text-embedding-3-small` (default) or `text-embedding-3-large`
-  - Configurable with `OPENAI_EMBEDDING_MODEL`
-- **Anthropic**: Official Claude embeddings
-- **Google Gemini**: `models/embedding-001`
+The system uses a priority-based selection for embeddings (only one embedding function is used, shared by all providers):
+
+**Priority Order:**
+1. **Google Gemini** (highest priority): `models/embedding-001`
+   - Used if `GEMINI_API_KEY` is configured
+2. **OpenAI** (fallback): `text-embedding-3-small` (default) or `text-embedding-3-large`
+   - Used if Gemini is not available and `OPENAI_API_KEY` is configured
+   - Configurable with `OPENAI_EMBEDDING_MODEL`
+3. **Anthropic** (not available): Anthropic does not provide a dedicated embeddings API
+   - If only Anthropic API key is configured, the system will fall back to OpenAI embeddings (if available)
+   - If neither Gemini nor OpenAI are available, embeddings will not work
+
+**Note:** The embedding function is initialized once and shared across all AI providers (OpenAI, Gemini, Claude) for consistency in the vector database.
 
 ## System Usage
 
@@ -470,16 +479,62 @@ class PineconeRAGService(RAGService):
 
 ### 2. Update Factory Function
 
+The factory function uses a dictionary dispatch pattern (not if/elif chains) for better maintainability:
+
+**Step 1:** Create a builder function in `service/rag_service_builders.py`:
+
+```python
+def build_pinecone_service() -> Optional[RAGService]:
+    """
+    Build Pinecone RAG service.
+    
+    Returns:
+        PineconeRAGService instance if successful, None otherwise
+    """
+    try:
+        return PineconeRAGService()
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize PineconeRAGService: {e}")
+        return None
+```
+
+**Step 2:** Add it to the `RAG_IMPLEMENTATIONS` dictionary:
+
+```python
+RAG_IMPLEMENTATIONS: Dict[str, RAGBuilder] = {
+    "chroma": build_chroma_service,
+    "pinecone": build_pinecone_service,  # New implementation
+}
+```
+
+**Step 3:** The factory function in `service/rag_service.py` will automatically use it:
+
 ```python
 def create_rag_service() -> Optional[RAGService]:
-    vector_db_type = os.getenv("VECTOR_DB_TYPE", "chroma").lower()
+    """Factory function to create RAG service based on configuration."""
+    from service.rag_service_builders import RAG_IMPLEMENTATIONS
     
-    if vector_db_type == "chroma":
-        return ChromaRAGService()
-    elif vector_db_type == "pinecone":
-        return PineconeRAGService()  # New implementation
-    ...
+    vector_db_type = os.getenv("VECTOR_DB_TYPE", "chroma").lower()
+    use_rag = os.getenv("USE_RAG", "true").lower() == "true"
+    
+    if not use_rag:
+        logger.info("ℹ️ RAG is disabled via USE_RAG environment variable")
+        return None
+    
+    # Use dictionary dispatch pattern
+    builder = RAG_IMPLEMENTATIONS.get(vector_db_type)
+    if builder:
+        return builder()
+    else:
+        logger.warning(f"⚠️ Unknown vector DB type: {vector_db_type}")
+        return None
 ```
+
+**Benefits of this pattern:**
+- O(1) lookup instead of O(n) comparison
+- Easier to extend with new providers
+- More maintainable and testable
+- No risk of missing cases
 
 ### 3. Configure Environment Variables
 

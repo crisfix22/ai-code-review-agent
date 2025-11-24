@@ -295,11 +295,18 @@ Analyzes a code diff and returns AI-generated feedback.
   "url": "https://github.com/owner/repo/pull/123",
   "author": "username",
   "diff_b64": "base64_encoded_diff_here",
-  "provider": "openai",  // Optional: "openai", "gemini", "claude", or omit for auto-selection
+  "provider": "openai",  // Optional: "openai", "gemini", "claude", "auto", or omit for auto-selection
   "language": "python",  // Optional: auto-detected if not provided
   "use_rag": true        // Optional: enable/disable RAG for this request (default: true)
 }
 ```
+
+**Provider Options:**
+- `"openai"`: Use OpenAI (GPT-4)
+- `"gemini"`: Use Google Gemini
+- `"claude"`: Use Anthropic Claude
+- `"auto"`: Automatically select the first available provider (priority: OpenAI → Claude → Gemini)
+- Omit or `null`: Same as `"auto"` (default behavior)
 
 **Response:**
 ```json
